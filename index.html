@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ackerman Negotiation Calculator</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #14181C;
+    --surface: #1B2126;
+    --surface-2: #212832;
+    --line: #333c45;
+    --ink: #ECE7DA;
+    --muted: #8B939B;
+    --brass: #C7973B;
+    --brass-soft: rgba(199,151,59,0.14);
+    --alert: #B3452C;
+    --alert-soft: rgba(179,69,44,0.14);
+    --ok: #6E8F6E;
+  }
+  html,body{background:var(--bg); color:var(--ink); font-family:'Inter',sans-serif;}
+  .font-display{font-family:'Oswald',sans-serif; letter-spacing:0.02em;}
+  .font-mono{font-family:'IBM Plex Mono',monospace;}
+  .stamp{
+    border:1.5px solid var(--brass);
+    color:var(--brass);
+    font-family:'Oswald',sans-serif;
+    letter-spacing:0.18em;
+    transform:rotate(-2deg);
+  }
+  .card{
+    background:var(--surface);
+    border:1px solid var(--line);
+  }
+  .card-active{
+    border-color:var(--brass);
+    box-shadow:0 0 0 1px var(--brass), 0 8px 24px -12px rgba(199,151,59,0.35);
+  }
+  .card-done{
+    opacity:0.55;
+  }
+  .ticket-edge{
+    background-image: radial-gradient(circle at 0 50%, var(--bg) 5px, transparent 5.5px), radial-gradient(circle at 100% 50%, var(--bg) 5px, transparent 5.5px);
+    background-position: left center, right center;
+    background-size: 12px 12px;
+    background-repeat: no-repeat;
+  }
+  .divider-dash{
+    border-top: 1px dashed var(--line);
+  }
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number]{-moz-appearance:textfield;}
+  .gauge-fill{ transition: width 700ms cubic-bezier(.4,0,.2,1); }
+  .tick-dot{ transition: background-color 500ms ease, transform 500ms ease; }
+  .fade-in{ animation: fadeIn 500ms ease both; }
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+  .focus-ring:focus{ outline:2px solid var(--brass); outline-offset:2px; }
+  ::selection{ background: var(--brass); color:#14181C; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<div class="max-w-xl mx-auto px-4 sm:px-6 pb-24">
+
+  <!-- HEADER -->
+  <header class="pt-10 pb-6">
+    <div class="flex items-center justify-between mb-4">
+      <span class="stamp text-[10px] sm:text-xs px-2.5 py-1 inline-block">CASE FILE · OPEN</span>
+      <span class="font-mono text-[10px] sm:text-xs text-[var(--muted)]" id="caseNumber">NEG-0000</span>
+    </div>
+    <h1 class="font-display text-3xl sm:text-4xl font-semibold uppercase tracking-tight text-[var(--ink)]">Ackerman<br class="hidden sm:block"> Negotiation Calculator</h1>
+    <p class="text-sm text-[var(--muted)] mt-3 max-w-md leading-relaxed">Set your target number. The four-offer sequence — <span class="text-[var(--brass)] font-medium">65 / 85 / 95 / 100</span> — is built for you, with the script to run at every step.</p>
+  </header>
+
+  <!-- INPUT -->
+  <section class="card p-5 sm:p-6 mb-6">
+    <label for="targetPrice" class="block font-mono text-[11px] uppercase tracking-widest text-[var(--muted)] mb-2">Your Target Price</label>
+    <div class="flex items-center gap-2">
+      <span class="font-mono text-2xl text-[var(--brass)]">$</span>
+      <input id="targetPrice" type="number" inputmode="decimal" placeholder="50000" min="0" step="1"
+        class="focus-ring w-full bg-transparent font-mono text-3xl sm:text-4xl font-semibold text-[var(--ink)] placeholder-[var(--line)] border-b border-[var(--line)] pb-2 focus:border-[var(--brass)]" />
+    </div>
+    <p class="text-xs text-[var(--muted)] mt-3 leading-relaxed">This is the number you'd genuinely be satisfied landing on — not their asking price. Every offer below is anchored to it.</p>
+  </section>
+
+  <!-- LEVERAGE GAUGE -->
+  <section id="gaugeSection" class="mb-6 hidden fade-in">
+    <div class="flex items-center justify-between mb-2">
+      <span class="font-mono text-[11px] uppercase tracking-widest text-[var(--muted)]">Leverage Gauge</span>
+      <span class="font-mono text-[11px] text-[var(--muted)]" id="stageLabel">Stage 1 of 4</span>
+    </div>
+    <div class="relative h-2 rounded-full bg-[var(--surface-2)] overflow-visible">
+      <div id="gaugeFill" class="gauge-fill h-full rounded-full" style="width:0%; background:linear-gradient(90deg,#6E8F6E,#C7973B,#B3452C);"></div>
+      <div id="gaugeTicks" class="absolute inset-0"></div>
+    </div>
+    <div class="grid grid-cols-4 gap-1 mt-3">
+      <div class="text-center"><div class="font-mono text-[10px] text-[var(--muted)]">65%</div><div class="font-mono text-xs" id="tickVal1">—</div></div>
+      <div class="text-center"><div class="font-mono text-[10px] text-[var(--muted)]">85%</div><div class="font-mono text-xs" id="tickVal2">—</div></div>
+      <div class="text-center"><div class="font-mono text-[10px] text-[var(--muted)]">95%</div><div class="font-mono text-xs" id="tickVal3">—</div></div>
+      <div class="text-center"><div class="font-mono text-[10px] text-[var(--brass)]">FINAL</div><div class="font-mono text-xs" id="tickVal4">—</div></div>
+    </div>
+  </section>
+
+  <!-- OFFER STAGES -->
+  <section id="stages" class="space-y-4 mb-8 hidden fade-in"></section>
+
+  <!-- RULES OF ENGAGEMENT -->
+  <section class="card p-5 sm:p-6 mb-6">
+    <div class="flex items-center gap-2 mb-4">
+      <span class="w-1.5 h-1.5 rounded-full bg-[var(--alert)]"></span>
+      <h2 class="font-display uppercase tracking-wide text-sm text-[var(--ink)]">Rules of Engagement</h2>
+    </div>
+    <ul class="space-y-3 text-sm text-[var(--ink)]">
+      <li class="flex gap-3">
+        <span class="font-mono text-[var(--brass)] text-xs pt-0.5">01</span>
+        <span><span class="font-medium">Wait for their counter.</span> <span class="text-[var(--muted)]">Never move to the next offer on your own. Make the offer, then stop talking — silence is pressure, and it's their turn to spend it.</span></span>
+      </li>
+      <li class="flex gap-3">
+        <span class="font-mono text-[var(--brass)] text-xs pt-0.5">02</span>
+        <span><span class="font-medium">Say no without saying "no."</span> <span class="text-[var(--muted)]">Lead with tactical empathy — "I hear you, and I know this isn't what you wanted" — before you decline. A calibrated "how am I supposed to do that?" often does the work for you.</span></span>
+      </li>
+      <li class="flex gap-3">
+        <span class="font-mono text-[var(--brass)] text-xs pt-0.5">03</span>
+        <span><span class="font-medium">Shrink your increases.</span> <span class="text-[var(--muted)]">65 → 85 → 95 → 100 is deliberate — each jump gets smaller, signaling you're closing in on your true ceiling, not just splitting differences.</span></span>
+      </li>
+      <li class="flex gap-3">
+        <span class="font-mono text-[var(--brass)] text-xs pt-0.5">04</span>
+        <span><span class="font-medium">Land on an odd number.</span> <span class="text-[var(--muted)]">Your final figure should look calculated, not rounded — a precise number reads as your true limit, not a negotiating position.</span></span>
+      </li>
+      <li class="flex gap-3">
+        <span class="font-mono text-[var(--brass)] text-xs pt-0.5">05</span>
+        <span><span class="font-medium">Attach a non-monetary item to the final offer.</span> <span class="text-[var(--muted)]">Throw in something that costs you little but signals extra generosity — it reframes the final ask as a bigger concession without moving the price.</span></span>
+      </li>
+    </ul>
+  </section>
+
+  <footer class="text-center text-[10px] font-mono text-[var(--muted)] uppercase tracking-widest pt-2 pb-6">
+    Built on the Ackerman Model · Never Split the Difference
+  </footer>
+
+</div>
+
+<script>
+  const stageMeta = [
+    {
+      pct: 0.65,
+      tag: "Stage 01",
+      title: "Opening Anchor",
+      key: "o1",
+      color: "var(--ok)",
+      script: "Deliver this low and let it sting a little — that's the point. \u201cI know this isn't close to what you're hoping for, but here's what I can do.\u201d Then stop talking."
+    },
+    {
+      pct: 0.85,
+      tag: "Stage 02",
+      title: "Calibrated Move",
+      key: "o2",
+      color: "#B08A3D",
+      script: "A real move, not a giveaway. Pair it with a calibrated \u201cno\u201d: \u201cI hear you, but I can't do that — here's what I can do instead.\u201d Wait for the next counter."
+    },
+    {
+      pct: 0.95,
+      tag: "Stage 03",
+      title: "Closing In",
+      key: "o3",
+      color: "#BE7A3A",
+      script: "The gap shrinks on purpose — it signals you're near your ceiling. Try: \u201cHow am I supposed to do that?\u201d and let them solve your problem for you."
+    },
+    {
+      pct: 1.00,
+      tag: "Final",
+      title: "Precise Final Offer",
+      key: "final",
+      color: "var(--alert)",
+      script: "Present this as your absolute, non-negotiable number — phrased precisely, never rounded. Pair it with the non-monetary item below."
+    }
+  ];
+
+  let currentStage = 1; // 1-4
+  let finalOffer = null;
+
+  const targetInput = document.getElementById('targetPrice');
+  const stagesEl = document.getElementById('stages');
+  const gaugeSection = document.getElementById('gaugeSection');
+  const gaugeFill = document.getElementById('gaugeFill');
+  const gaugeTicks = document.getElementById('gaugeTicks');
+  const stageLabel = document.getElementById('stageLabel');
+  const caseNumber = document.getElementById('caseNumber');
+
+  caseNumber.textContent = "NEG-" + Math.floor(1000 + Math.random()*9000);
+
+  function fmt(n){
+    return n.toLocaleString('en-US', {maximumFractionDigits:0});
+  }
+
+  function randomOddFinal(target){
+    const bump = 1 + (Math.random() * 0.023 + 0.003); // 0.3%–2.6% above target
+    let val = Math.round(target * bump);
+    if (val % 100 === 0) val += Math.floor(Math.random()*41) + 7;
+    if (val % 50 === 0) val += 3;
+    if (val % 10 === 0) val += Math.floor(Math.random()*7) + 1;
+    return val;
+  }
+
+  function render(){
+    const raw = targetInput.value;
+    const target = parseFloat(raw);
+
+    if (!raw || isNaN(target) || target <= 0){
+      gaugeSection.classList.add('hidden');
+      stagesEl.classList.add('hidden');
+      stagesEl.innerHTML = '';
+      return;
+    }
+
+    gaugeSection.classList.remove('hidden');
+    stagesEl.classList.remove('hidden');
+
+    const o1 = target * 0.65;
+    const o2 = target * 0.85;
+    const o3 = target * 0.95;
+    if (finalOffer === null) finalOffer = randomOddFinal(target);
+    const values = {o1, o2, o3, final: finalOffer};
+
+    // gauge tick values
+    document.getElementById('tickVal1').textContent = '$' + fmt(o1);
+    document.getElementById('tickVal2').textContent = '$' + fmt(o2);
+    document.getElementById('tickVal3').textContent = '$' + fmt(o3);
+    document.getElementById('tickVal4').textContent = '$' + fmt(finalOffer);
+
+    // gauge fill + ticks
+    const fillPct = [0, 65, 85, 95, 100][currentStage - 1 + 1] || 0;
+    const stagePct = [65, 85, 95, 100][currentStage - 1];
+    gaugeFill.style.width = stagePct + '%';
+    stageLabel.textContent = 'Stage ' + currentStage + ' of 4';
+
+    gaugeTicks.innerHTML = [65,85,95,100].map((p, i) => {
+      const active = (i + 1) === currentStage;
+      const done = (i + 1) < currentStage;
+      const color = done ? 'var(--brass)' : (active ? 'var(--alert)' : 'var(--line)');
+      const scale = active ? 'scale(1.4)' : 'scale(1)';
+      return `<div class="tick-dot absolute top-1/2 w-2.5 h-2.5 rounded-full border-2 border-[var(--bg)]" style="left:calc(${p}% - 5px); transform:translateY(-50%) ${scale}; background:${color};"></div>`;
+    }).join('');
+
+    // stage cards
+    stagesEl.innerHTML = stageMeta.map((s, idx) => {
+      const n = idx + 1;
+      const val = values[s.key];
+      const isActive = n === currentStage;
+      const isDone = n < currentStage;
+      const stateClass = isActive ? 'card-active' : (isDone ? 'card-done' : '');
+      const isFinal = s.key === 'final';
+
+      const rerollBtn = isFinal ? `
+        <button onclick="rerollFinal()" class="font-mono text-[10px] uppercase tracking-widest text-[var(--brass)] border border-[var(--brass)] px-2.5 py-1.5 hover:bg-[var(--brass-soft)] transition-colors focus-ring">
+          Reroll Precise Figure
+        </button>` : '';
+
+      const nonMonetary = isFinal ? `
+        <div class="mt-4 pt-4 divider-dash">
+          <label class="block font-mono text-[10px] uppercase tracking-widest text-[var(--muted)] mb-1.5">Non-Monetary Add-On</label>
+          <input id="nonMonetary" type="text" placeholder="e.g. faster turnaround, extended warranty, free delivery"
+            class="focus-ring w-full bg-[var(--surface-2)] border border-[var(--line)] text-sm text-[var(--ink)] px-3 py-2 placeholder-[var(--muted)]" />
+        </div>` : '';
+
+      let actionBtn = '';
+      if (isActive && n < 4){
+        actionBtn = `<button onclick="advanceStage()" class="mt-4 w-full font-mono text-xs uppercase tracking-widest text-[var(--bg)] bg-[var(--brass)] px-3 py-2.5 hover:opacity-90 transition-opacity focus-ring">They countered → Move to ${stageMeta[n].tag}</button>`;
+      } else if (isActive && n === 4){
+        actionBtn = `<div class="mt-4 font-mono text-[11px] uppercase tracking-widest text-[var(--alert)] border border-[var(--alert)] px-3 py-2.5 text-center">Hold the line — this is your ceiling</div>`;
+      } else if (isDone){
+        actionBtn = `<div class="mt-3 font-mono text-[10px] uppercase tracking-widest text-[var(--brass)]">✓ Delivered — awaiting reset</div>`;
+      }
+
+      return `
+        <div class="card ticket-edge p-5 sm:p-6 ${stateClass} transition-all duration-300">
+          <div class="flex items-start justify-between gap-3 mb-1">
+            <div>
+              <div class="font-mono text-[10px] uppercase tracking-widest" style="color:${s.color}">${s.tag} · ${(s.pct*100).toFixed(0)}%</div>
+              <div class="font-display uppercase text-lg text-[var(--ink)] mt-0.5">${s.title}</div>
+            </div>
+            ${rerollBtn}
+          </div>
+          <div class="font-mono text-3xl sm:text-4xl font-semibold text-[var(--ink)] mt-2">$${fmt(val)}</div>
+          <p class="text-sm text-[var(--muted)] mt-3 leading-relaxed">${s.script}</p>
+          ${nonMonetary}
+          ${actionBtn}
+        </div>
+      `;
+    }).join('');
+  }
+
+  function advanceStage(){
+    if (currentStage < 4){
+      currentStage += 1;
+      render();
+      document.getElementById('stages').scrollIntoView({behavior:'smooth', block:'nearest'});
+    }
+  }
+
+  function rerollFinal(){
+    const target = parseFloat(targetInput.value);
+    if (!isNaN(target) && target > 0){
+      finalOffer = randomOddFinal(target);
+      render();
+    }
+  }
+
+  targetInput.addEventListener('input', () => {
+    finalOffer = null;
+    currentStage = 1;
+    render();
+  });
+</script>
+</body>
+</html>
